@@ -1,0 +1,145 @@
+#Programa de MDS para el modelo de Ising 1D
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy as sp
+import scipy.special as sps
+from mpl_toolkits.mplot3d import Axes3D
+from math import log, exp, pi, sqrt
+from matplotlib import rc
+rc('font', **{'family':'serif','serif':['times']})
+rc('text', usetex=True)
+
+
+n=input('Numero de factores\n')
+T=input('Temperatura\n')
+l=input('Longitud característica\n')
+n=int(n)
+T=float(T)
+l=float(l)
+I=np.zeros(n)
+dist=[0]*n
+pdist=[0]*n
+B=[0]*n
+C=np.zeros(n)
+#Se inician los arreglos necesarios para realizar los cálulos.
+
+for i in range (0,n):
+	pdist[i]=[0]*n
+	B[i]=[0]*n
+	dist[i]=[0]*n
+
+#En esta parte se calculan los correladores para estimar la información mutua y se puedan construir las distancias entres los factores del espacio de Hilbert.
+
+m=0
+A=0
+for i in range (0,n):
+	A=(np.tanh(1/T))**i
+	I[i]=float(A)
+	m=m+1
+	if abs(I[i])<0.00001:
+		break
+#l=-log(np.tanh(1/T))
+print("Vecinos con interaccion",(m-1)*2)
+print("Longitud caracteristica",l)
+#Se construye una matriz de pre-distancia que servirá para construir la matriz de distancias que se ocuparán para el MDS. Esta matriz sólo incluye la distancia de factores del espacio de Hilbert que tiene información mutua distinta de cero, de forma práctica, esto es, a partir de qué cifra significativa se considera nula información mutua, considerando que decae de manera exponencial para este sistema.
+
+for i in range (0,n):
+	for j in range (0,n):
+		if abs(i-j)<m:
+			pdist[i][j]=l*log((I[0]/I[abs(i-j)])**2)
+
+#Con la matriz de predistancias se obtiene la matriz de distancias para el MDS, tomando las distancias entre vecinos la calculada en la predistancia y considerando que el camino más corto es pasar por menos vértices, por ello se toma el módulo de la separación entre factores y el lugar máximo de vecinos con interacción, m, después quedara un número entero menor a m, del cual sí se tiene la predistancia.
+
+for i in range (0,n):
+	for j in range (0,n):
+		if abs(i-j)<m:
+			dist[i][j]=pdist[i][j]
+		else:
+			dist[i][j]=(abs(i-j)//(m-1))*pdist[0][m-1]+pdist[0][abs(i-j)%(m-1)]
+
+
+for i in range (0,n):
+	for j in range (0,n):
+		C[i]=C[i]+dist[i][j]**2
+
+D=0
+
+for i in range (0,n):
+	D=D+C[i]
+
+#Usando la fórmula de MDS, se construye la matriz B, tomando como origen de las coordenadas el centroide del conjunto de puntos.
+
+for i in range (0,n):
+	for j in range (0,n):
+		B[i][j]=-((dist[i][j])**2-(1/n)*(C[i]+C[j])+(1/n**2)*D)/2
+
+#Esta parte es para revisar que la matriz de distancias y de productos interiores sean simétrica y siempre existan eigenvalores reales, de manera que exista solución a la ecuación B=Xt*X, en teoría.
+
+for i in range (0,n):
+	for j in range (0,n):
+		if (dist[i][j]-dist[j][i])!=0:
+			print('NO es simetrica la Distancia')
+		break
+		if (B[i][j]-B[j][i]!=0):
+			print('NO es simetrica la matriz de Productos interiores')
+		break
+
+#Se calculan los eigenvalores de la matriz B y se hacen algunas preparaciones para graficarlos. Los eigenvectores son reescalados, según su eigenvalor, con la finalidad de graficarlos en 3D. La gráfica será el encaje del espacio generado por este sistema cuántico.
+
+w,v=np.linalg.eigh(B)
+w[:]=w[::-1]
+eigval=np.linspace(1,len(w),len(w))
+plt.plot(eigval,w,'bo')
+plt.title('Grafica de los eigenvalores')
+plt.xlabel('$k$')
+plt.ylabel('$\lambda_k$')
+plt.yscale('log')
+plt.show()
+w[:]=w[::-1]
+msg=0
+
+#Según el método MDS, la ecuación B=Xt*X tiene un encaje en un espacio Euclideano si sus eigenvalores son positivos, de lo contrario existe el encaje pero en un espacio no euclideano. Esta parte del programa avisa que el encaje no es eiuclideano.
+
+for i in range (0,n):
+	if abs(w[i])<0.00001:
+		w[i]=0
+	if w[i]>=0:
+		w[i]=sqrt(w[i])
+	else:
+		msg='Este encaje no es euclideano porque tiene eigenvalores negativos'
+		print('Eigenvalor negativo', w[i])	
+		w[i]=sqrt(-w[i])		
+
+#Imprime si el encaje no es euclideano.
+if msg!=0:
+	print(msg)
+
+#Esta parte grafica y los eigenvectores.
+for i in range (0,n):
+	for j in range (0,n):
+		v[i][j]=w[j]*v[i][j]
+
+xt=np.transpose(v)
+x=xt[n-1]
+y=xt[n-2]
+z=xt[n-3]
+fig=plt.figure()
+ax=fig.gca(projection='3d')
+ax.scatter(x,y,z)
+plt.title('Grafica del encaje')
+ax.set_xlabel('$x$')
+ax.set_ylabel('$y$')
+ax.set_zlabel('$z$')
+axes = plt.gca()
+axes.set_ylim([-1,1])
+axes.set_zlim([-1,1])
+plt.show()
+
+plt.plot(x,y,'ro')
+plt.title('Encaje en 2D')
+plt.xlabel('$x$')
+plt.ylabel('$y$')
+axes = plt.gca()
+axes.set_ylim([-1,1])
+plt.show()
