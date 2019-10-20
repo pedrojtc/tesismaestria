@@ -1,0 +1,141 @@
+#Programa para un espacio 2D con la métrica d_1
+import math
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy as sp
+import scipy.special as sps
+from mpl_toolkits.mplot3d import Axes3D
+from math import log, exp, pi, sqrt
+from matplotlib import rc
+rc('font', **{'family':'serif','serif':['times']})
+rc('text', usetex=True)
+n=input('Numero de renglones y columnas\n')
+l=input('Longitud caracteristica\n')
+#lonc=input('Longitud de correlacion\n')
+tau=input('Parámetro de temperatura\n')
+n=int(n)
+tau=float(tau)
+l=float(l)
+#lonc=float(lonc)
+#I=[0]*(n**2)
+dist=[0]*(n**2)
+pdist=[0]*(n**2)
+B=[0]*(n**2)
+C=np.zeros(n**2)
+#Se inician los arreglos necesarios para realizar los cálulos.
+
+
+for i in range (0,n**2):
+	B[i]=[0]*(n**2)
+	dist[i]=[0]*(n**2)
+
+t=[0]*(n**2)
+for i in range (0,n**2):
+	t[i]=[0]*2
+
+for i in range (0,n):
+	for j in range (0,n):
+		t[n*i+j]=[i,j]
+
+for i in range (0,n**2):
+	for j in range (0,n**2):
+		s=0
+		for k in range (0,2):		
+			s=s+abs(t[i][k]-t[j][k])
+		dist[i][j]=s
+
+#Se calculan las cantidades necesarias para construir la matriz de productos interiores B.
+
+for i in range (0,n**2):
+	for j in range (0,n**2):
+		C[i]=C[i]+dist[i][j]**2
+
+D=0
+
+for i in range (0,n**2):
+	D=D+C[i]
+
+#Usando la fórmula de MDS, se construye la matriz B, tomando como origen de las coordenadas el centroide del conjunto de puntos.
+
+for i in range (0,n**2):
+	for j in range (0,n**2):
+		B[i][j]=-((dist[i][j])**2-(1/n**2)*(C[i]+C[j])+(1/n**4)*D)/2
+
+#Esta parte es para revisar que la matriz de distancias y de productos interiores sean simétrica y siempre existan eigenvalores reales, de manera que exista solución a la ecuación B=Xt*X, en teoría.
+
+for i in range (0,n):
+	for j in range (0,n):
+		if (dist[i][j]-dist[j][i])!=0:
+			print('NO es simetrica la Distancia')
+		break
+		if (B[i][j]-B[j][i]!=0):
+			print('NO es simetrica la matriz de Productos interiores')
+		break
+
+#Se calculan los eigenvalores de la matriz B y se hacen algunas preparaciones para graficarlos. Los eigenvectores son reescalados, según su eigenvalor, con la finalidad de graficarlos en 3D. La gráfica será el encaje del espacio generado por este sistema cuántico.
+
+w,v=np.linalg.eigh(B)
+eigval=np.linspace(1,len(w),len(w))
+
+#Grafica de los eigenvalores de la matriz B
+#Invierto el orden de los eigenvalores
+w[:]=w[::-1]
+s1=0
+s2=0
+for i in range (0,n**2):
+	if w[i]>=0 :
+		s1=s1+w[i]
+	else:
+		s2=s2+abs(w[i])
+print(s1,s2)
+s2=s2+s1
+print(w[0],w[1],w[2])
+plt.plot(eigval,abs(w),'bo')
+plt.title('Grafica de los eigenvalores')
+plt.xlabel('$k$')
+plt.ylabel('$\lambda_k$')
+plt.yscale('log')
+plt.show()
+#Regreso al orden original para poder hacer la gráfica del encaje
+w[:]=w[::-1]
+
+
+
+#Según el método MDS, la ecuación B=Xt*X tiene un encaje en un espacio Euclideano si sus eigenvalores son positivos, de lo contrario existe el encaje pero en un espacio no euclideano. Esta parte del programa avisa que el encaje no es euclideano.
+msg=0
+
+for i in range (0,n**2):
+	if abs(w[i])<0.0000001:
+		w[i]=0
+	if w[i]>=0:
+		w[i]=sqrt(w[i])
+	else:
+		msg='Este encaje no es euclideano porque tiene eigenvalores negativos'
+		print('Eigenvalor negativo', w[i])	
+		w[i]=sqrt(-w[i])		
+
+#Imprime si el encaje no es euclideano.
+if msg!=0:
+	print(msg)
+
+#Esta parte grafica el encaje del espacio emergente en un espacio 3D
+
+for i in range (0,n**2):
+	for j in range (0,n**2):
+		v[i][j]=w[j]*v[i][j]
+
+xt=np.transpose(v)
+x=xt[n**2-1]
+y=xt[n**2-2]
+z=xt[n**2-3]
+fig=plt.figure()
+ax=fig.gca(projection='3d')
+ax.scatter(x,y,z)
+plt.title('Grafica del encaje')
+ax.set_xlabel('$x$')
+ax.set_ylabel('$y$')
+ax.set_zlabel('$z$')
+plt.show()
+ep=1-(s1/s2)
+print(s1,s2)
+print(ep)
