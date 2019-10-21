@@ -42,7 +42,7 @@ for i in range (0,n**2):
 		s=0
 		for k in range (0,2):		
 			s=s+(t[i][k]-t[j][k])**2
-		dist[i][j]=l*sqrt(s)*(1+4*sqrt(s)*tau)
+		dist[i][j]=l*sqrt(s)*(1-4*sqrt(s)*tau)
 
 #Se calculan las cantidades necesarias para construir la matriz B.
 
